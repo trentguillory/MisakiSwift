@@ -7,7 +7,7 @@ final public class EnglishG2P {
   private let british: Bool
   private let tagger: NLTagger
   private let lexicon: Lexicon
-  private let fallback: EnglishFallbackNetwork
+  private lazy var fallback = EnglishFallbackNetwork(british: british)
   private let unk: String
     
   static let punctuationTags: Set<NLTag> =  Set([.openQuote, .closeQuote, .openParenthesis, .closeParenthesis, .punctuation, .sentenceTerminator, .otherPunctuation])
@@ -46,8 +46,17 @@ final public class EnglishG2P {
     self.british = british
     self.tagger = NLTagger(tagSchemes: [.nameTypeOrLexicalClass])
     self.lexicon = Lexicon(british: british)
-    self.fallback = EnglishFallbackNetwork(british: british)
     self.unk = unk
+  }
+
+  private func fallbackPhonemize(_ word: MToken) -> (phoneme: String?, rating: Int) {
+#if targetEnvironment(simulator)
+    // MLX's Metal backend is not supported by CoreSimulator. Keep the lexicon
+    // path usable for simulator development and leave OOV words unresolved.
+    return (nil, 0)
+#else
+    return fallback(word)
+#endif
   }
 
   private func tokenContext(_ ctx: TokenContext, ps: String?, token: MToken) -> TokenContext {
@@ -417,7 +426,7 @@ final public class EnglishG2P {
         }
         
         if w.phonemes == nil {
-          let out = fallback(w)
+          let out = fallbackPhonemize(w)
           w.phonemes = out.0
           w.`_`.rating = out.1
         }
@@ -464,7 +473,7 @@ final public class EnglishG2P {
         if shouldFallback {
           let token = mergeTokens(arr)
           let first = arr[0]
-          let out = fallback(token)
+          let out = fallbackPhonemize(token)
           first.phonemes = out.0
           first.`_`.rating = out.1
           arr[0] = first

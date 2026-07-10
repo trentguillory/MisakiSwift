@@ -50,3 +50,12 @@ let texts: [(originalText: String, britishPhonetization: String, americanPhoneit
   #expect(result.contains("dˈɒlə"))    // "dollar" phoneme
   #expect(result.contains("jˈʊəɹQz"))  // "euro" phoneme
 }
+
+#if targetEnvironment(simulator)
+@Test func testOutOfVocabularyWordDoesNotInitializeMLXOnSimulator() {
+  let englishG2P = EnglishG2P()
+  let (result, _) = englishG2P.phonemize(text: "VoiceMark")
+
+  #expect(result == "❓")
+}
+#endif
